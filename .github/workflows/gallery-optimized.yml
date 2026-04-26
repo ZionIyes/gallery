@@ -1,0 +1,98 @@
+# Optimized GH Pages static deployment
+# Uses caching to keep previous build output
+name: Deploy ThumbsUp Gallery (w/ cache)
+on:
+  push:
+    branches: ["master"]
+    
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  ### Build the gallery (with caching)
+  build:
+    name: Build Gallery 🔧
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Shallow clone is fine - we just need the source files
+          fetch-depth: 1
+      
+      # Cache node_modules and system dependencies
+      - name: Cache system dependencies
+        id: cache-deps
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/apt
+            /usr/bin/gm
+            /usr/bin/convert
+            /usr/bin/ffmpeg
+          key: ${{ runner.os }}-deps-v1
+      
+      - name: Cache npm global packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-thumbsup-v1
+      
+      # Cache the previous build output to speed up incremental builds
+      - name: Cache previous build
+        id: cache-build
+        uses: actions/cache@v5
+        with:
+          path: ./build_output
+          key: ${{ runner.os }}-gallery-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-gallery-build-
+      
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install system dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: sudo apt update && sudo apt install -y exiftool graphicsmagick imagemagick ffmpeg gifsicle
+
+      - name: Install ThumbsUp
+        run: npm install -g thumbsup
+        
+      - name: Build site
+        run: thumbsup --config config.json
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./build_output
+
+  ### Deploy job
+  deploy:
+    name: Deploy ThumbsUp build to GitHub Pages
+    needs: build
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy GitHub Pages site
+        uses: actions/deploy-pages@v5
+        id: deployment
+        with:
+          token: ${{ github.token }}
+          artifact_name: github-pages
