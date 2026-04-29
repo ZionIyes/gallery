@@ -2,7 +2,7 @@
   "input": "./albums",
   "output": "./build_output",
   "title": "ZionIyes",
-  "footer": "ZionIyes ©️ 2023",
+  "footer": "ZionIyes ©️ 2026",
   "usage-stats": false,
   "sort-albums-by": "end-date",
   "sort-albums-direction": "desc",
@@ -11,5 +11,6 @@
   "download-photos": "copy",
   "cleanup": true,
   "theme": "cards",
-  "css": "./custom.css"
+  "css": "./custom.css",
+  "scan-mode": "incremental"
 }
