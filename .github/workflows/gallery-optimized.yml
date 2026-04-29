@@ -1,6 +1,6 @@
 # Optimized GH Pages static deployment
 # Uses caching to keep previous build output
-name: Deploy ThumbsUp Gallery (w/ cache)
+name: Deploy ThumbsUp Gallery (w/ cache & cleanup)
 on:
   push:
     branches: ["master"]
@@ -15,6 +15,11 @@ on:
         type: boolean
       show_dates:
         description: 'Show generated album dates'
+        required: false
+        default: 'false'
+        type: boolean
+      cleanup:
+        description: 'Remove items from build output that are no longer in albums'
         required: false
         default: 'false'
         type: boolean
@@ -74,7 +79,7 @@ jobs:
           node-version: 22
 
       - name: Install system dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
+        if: ${{ steps.cache-deps.outputs.cache-hit != 'true' }}
         run: sudo apt update && sudo apt install -y exiftool graphicsmagick imagemagick ffmpeg gifsicle jq
 
       - name: Install ThumbsUp
@@ -93,8 +98,13 @@ jobs:
             done
           ' sh {} +
           echo "=== End EXIF debug ==="
-        
+      
+      - name: Cleanup build output
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.cleanup == 'true' }}
+        run: thumbsup --cleanup true --scan-mode full --config config.json
+      
       - name: Build site
+        if: ${{ github.event.inputs.cleanup != 'true' }}
         run: thumbsup --config config.json
       
       - name: Show album dates
